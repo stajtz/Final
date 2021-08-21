@@ -5,6 +5,7 @@ from collections import deque
 import math
 import pickle
 import os.path as os
+import scipy.spatial.distance as dist
 
 # nesne merkezini depolayacak veri tipi
 # kaç tane merkez noktası hatırlayacağı
@@ -16,8 +17,9 @@ pts = deque(maxlen=buffer_size)
 def empty(a): pass
 
 #istenilen cascadenin dosya konumu verilir
+folderName="mutfak-cascade"
 cascadeName = "bardak"
-cascade = cv2.CascadeClassifier(cascadeName + ".xml")
+cascade = cv2.CascadeClassifier(folderName+"/"+cascadeName + ".xml")
 
 # Trackbarları oluşturuyor
 def createHSVTrackbar():
@@ -181,8 +183,29 @@ def drawBox(img, bbox):
     cv2.putText(img, "Tracking", (25, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
 
 
+mouseX=-1
+mouseY=-1
+key=-1
+img=None
+#mouse tıklamasını alan bir fonksiyon
+def click_event(event, x, y, flags, params):
+  
+    global mouseX,mouseY,key
+    # checking for left mouse clicks
+    if event == cv2.EVENT_LBUTTONDOWN and key==ord("t"):
+  
+        # displaying the coordinates
+        # on the Shell
+        mouseX,mouseY=x,y
+        replace=img.copy()
+        cv2.circle(replace, (x, y),3,(255, 0, 255), -1)
+        cv2.imshow("Contour",replace)
+    elif key==-1:
+        mouseX,mouseY=-1,-1
+
 # videolar arası geçiş yaparken kodları bir daha yapmasın diye fonksiyon içerisinde
 def videos(video):
+    global key,img
     # İstediğimiz renkleri aralığını seçmek için trackbar koyuyoruz
     createHSVTrackbar()
     # nesne tespiit ayarlaması yapmak için
@@ -205,6 +228,7 @@ def videos(video):
 
         # videonun çalışıp çalışmadığı ve gelen kareleri değişkene atılıyor
         success, orginalFrame = capture.read()
+        img=orginalFrame
 
         key = cv2.waitKey(1)
         # trackbar dan gelen değerleri değişkenlere atıyoruz
@@ -240,12 +264,38 @@ def videos(video):
             (contours, _) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             center = None
 
-            #tespit edilen nesneyi değişkene atıyoruz
-            nesne = cascade.detectMultiScale(orginalFrame, scaleVal, neighbor)
-            #tespit edilen nesnenin etrafına dikdörtgen çiziliyor
-            for (x, y, w, h) in nesne:
-                cv2.putText(orginalFrame, cascadeName, (x, y - 10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (0, 255, 0))
-                cv2.rectangle(orginalFrame, (x, y), (x + w, y + h), (0, 255, 0), 5)
+            if not track:
+                #tespit edilen nesneyi değişkene atıyoruz
+                nesne = cascade.detectMultiScale(orginalFrame, scaleVal, neighbor)
+                
+                #tespit edilen nesnenin etrafına dikdörtgen çiziliyor
+                for (x, y, w, h) in nesne:
+                    cv2.putText(orginalFrame, cascadeName, (x, y - 10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (0, 255, 0))
+                    cv2.rectangle(orginalFrame, (x, y), (x + w, y + h), (0, 255, 0), 5)
+                cv2.imshow("Contour", orginalFrame)
+                
+            #tuşa basıldığı zaman tespit edilen nesne varsa tıklanan en yakın nesneyi takip etmesi için
+            if key==ord("t"):
+                cv2.setMouseCallback("Contour", click_event)
+                cv2.waitKey(0)
+                if(len(nesne)>0):
+                    centerRect=[]
+                    mouseCenter=[]
+                    RectN=[]
+                    mouseCenter.append((mouseX,mouseY))
+                    for (x,y,w,h) in nesne:
+                        if((x<=mouseX)and(x+w>=mouseX)and ((y<=mouseY)and(y+h>=mouseY))):
+                            RectN.append((x,y,w,h))
+                            recx=int(np.round(x+(w/2)))
+                            recy=int(np.round(y+(h/2)))
+                            centerRect.append((recx,recy))         
+                    distance=dist.cdist(mouseCenter,centerRect)
+                    distanceIndex=np.argmin(distance)
+                    RectN=RectN[distanceIndex]
+                    drawBox(orginalFrame,RectN)
+                    track=True
+                    tracker.init(orginalFrame, RectN)
+            
 
             # eğer kontur varsa içine girilir
             if len(contours) > 0 and not track:
