@@ -409,7 +409,7 @@ fov = calibrateAndFov()
 gKuzeyX = int(input("Lütfen pusula yardımı ile kameranızın baktığı yönü derece olarak giriniz:"))
 gKuzeyY = int(input("Lütfen kameranızın baktığı yukarı-aşağı doğru baktığı yönü açı derecesi olarak giriniz:"))
 
-videos("penVideo.mp4")
+videos(0)
 
 
 
