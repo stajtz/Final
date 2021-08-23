@@ -24,7 +24,7 @@ cascade = cv2.CascadeClassifier(folderName+"/"+cascadeName + ".xml")
 # Trackbarları oluşturuyor
 def createHSVTrackbar():
     cv2.namedWindow("HSV")
-    cv2.resizeWindow("HSV", 650, 350)
+    cv2.resizeWindow("HSV", 640, 350)
     cv2.createTrackbar("hueMax", "HSV", 0, 255, empty)
     cv2.createTrackbar("hueLow", "HSV", 0, 255, empty)
     cv2.createTrackbar("satMax", "HSV", 0, 255, empty)
@@ -35,7 +35,7 @@ def createHSVTrackbar():
 
 def createTrackbar():
     cv2.namedWindow("Scale and Neighb/Box")
-    cv2.resizeWindow("Scale and Neighb/Box", 650, 350)
+    cv2.resizeWindow("Scale and Neighb/Box", 640, 80)
     cv2.createTrackbar("Scale", "Scale and Neighb/Box", 400, 1000, empty)
     cv2.createTrackbar("Neighb/Box", "Scale and Neighb/Box", 4, 50, empty)
 
@@ -192,7 +192,7 @@ def click_event(event, mx, my, flags, params):
   
     global mouseX,mouseY,key
     
-    #mouse tıklama eventi ve t tuşuna basılmışsa mouse x ve y koordinatları
+    #mouse tıklama eventi ve t tuşuna basılmışsa mouse x ve y koordinatlarını değişkenlere atayıp contour üzerine nokta bırakıyor
     if event == cv2.EVENT_LBUTTONDOWN and key==ord("t"):
         mouseX,mouseY=mx,my
         replace=img.copy()
@@ -302,29 +302,40 @@ def videos(video):
                     nesne = cascade.detectMultiScale(orginalFrame, scaleVal, neighbor)
                     
                     #tespit edilen nesnenin etrafına dikdörtgen çiziliyor
-                    for (x, y, w, h) in nesne:
-                        cv2.putText(orginalFrame, cascadeName, (x, y - 10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (0, 255, 0))
-                        cv2.rectangle(orginalFrame, (x, y), (x + w, y + h), (0, 255, 0), 5)
+                    for (casx, casy, casw, cash) in nesne:
+                        cv2.putText(orginalFrame, cascadeName, (casx, casy - 10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (0, 255, 0))
+                        cv2.rectangle(orginalFrame, (casx, casy), (casx + casw, casy + cash), (0, 255, 0), 5)
                     cv2.imshow("Contour", orginalFrame)
                     
                 #tuşa basıldığı zaman tespit edilen nesne varsa tıklanan en yakın nesneyi takip etmesi için
                 if key==ord("t"):
+                    #mouse tıklama eventi başlatıyoruz
                     cv2.setMouseCallback("Contour", click_event)
                     cv2.waitKey(0)
+                    #Nesne tespit edilmişse giriyoruz
                     if(len(nesne)>0):
+                        #orta noktaları tutan değişken
                         centerRect=[]
+                        #mouse noktasını tutan değişken
                         mouseCenter=[]
+                        #mouse noktası içerisinde olan nesne tespit kareleri
                         RectN=[]
+                        #cdist algoritmasını kullanabilmemiz için mouse noktalarını bir listeye atıyoruz
                         mouseCenter.append((mouseX,mouseY))
-                        for (x,y,w,h) in nesne:
-                            if((x<=mouseX)and(x+w>=mouseX)and ((y<=mouseY)and(y+h>=mouseY))):
-                                RectN.append((x,y,w,h))
-                                recx=int(np.round(x+(w/2)))
-                                recy=int(np.round(y+(h/2)))
+                        #tespit edilen kutuları tek tek dolaşıp mouse noktasının içerisinde olup olmadığını bakıyoruz
+                        for (casx,casy,casw,cash) in nesne:
+                            if((casx<=mouseX)and(casx+casw>=mouseX)and ((casy<=mouseY)and(casy+cash>=mouseY))):
+                                #içerisinde ise o kutuyu bir değişkene atıyoruz ve orta noktasını da bir değişkene atıyoruz
+                                RectN.append((casx,casy,casw,cash))
+                                recx=int(np.round(casx+(casw/2)))
+                                recy=int(np.round(casy+(cash/2)))
                                 centerRect.append((recx,recy))         
+                        #oluşan kutu dizisindeki orta noktaların mouse noktası ile uzaklığına bakıyoruz
                         distance=dist.cdist(mouseCenter,centerRect)
+                        #en yakın uzaklıktaki indexi alıyoruz ve o kutuyu değişkene atıyoruz
                         distanceIndex=np.argmin(distance)
                         RectN=RectN[distanceIndex]
+                        #bulunan kutunun etrafını çiziyoruz ve takip algoritmamızı başlatıyoruz
                         drawBox(orginalFrame,RectN)
                         track=True
                         tracker.init(orginalFrame, RectN)
@@ -406,9 +417,10 @@ def videos(video):
 
 # fovx,fovy
 fov = calibrateAndFov()
-gKuzeyX = int(input("Lütfen pusula yardımı ile kameranızın baktığı yönü derece olarak giriniz:"))
-gKuzeyY = int(input("Lütfen kameranızın baktığı yukarı-aşağı doğru baktığı yönü açı derecesi olarak giriniz:"))
-
+#gKuzeyX = int(input("Lütfen pusula yardımı ile kameranızın baktığı yönü derece olarak giriniz:"))
+#gKuzeyY = int(input("Lütfen kameranızın baktığı yukarı-aşağı doğru baktığı yönü açı derecesi olarak giriniz:"))
+gKuzeyX=129
+gKuzeyY=0
 videos(0)
 
 
