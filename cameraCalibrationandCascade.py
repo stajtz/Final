@@ -17,8 +17,8 @@ pts = deque(maxlen=buffer_size)
 def empty(a): pass
 
 #istenilen cascadenin dosya konumu verilir
-folderName="mutfak-cascade"
-cascadeName = "bardak"
+folderName="kirtasiye-cascade"
+cascadeName = "kalem"
 cascade = cv2.CascadeClassifier(folderName+"/"+cascadeName + ".xml")
 
 # Trackbarları oluşturuyor
@@ -188,31 +188,33 @@ mouseY=-1
 key=-1
 img=None
 #mouse tıklamasını alan bir fonksiyon
-def click_event(event, x, y, flags, params):
+def click_event(event, mx, my, flags, params):
   
     global mouseX,mouseY,key
-    # checking for left mouse clicks
+    
+    #mouse tıklama eventi ve t tuşuna basılmışsa mouse x ve y koordinatları
     if event == cv2.EVENT_LBUTTONDOWN and key==ord("t"):
-  
-        # displaying the coordinates
-        # on the Shell
-        mouseX,mouseY=x,y
+        mouseX,mouseY=mx,my
         replace=img.copy()
-        cv2.circle(replace, (x, y),3,(255, 0, 255), -1)
+        cv2.circle(replace, (mx, my),3,(255, 0, 255), -1)
         cv2.imshow("Contour",replace)
     elif key==-1:
         mouseX,mouseY=-1,-1
 
 # videolar arası geçiş yaparken kodları bir daha yapmasın diye fonksiyon içerisinde
 def videos(video):
+    
     global key,img
     # İstediğimiz renkleri aralığını seçmek için trackbar koyuyoruz
     createHSVTrackbar()
     # nesne tespiit ayarlaması yapmak için
     createTrackbar()
 
+    cv2.namedWindow("Contour")
+    cv2.createTrackbar("Cascade On", "Contour", 1, 1, empty)
+
     # işleyeceği videoyu alıyor
-    capture = cv2.VideoCapture(0)
+    capture = cv2.VideoCapture(video)
     opencvTrackers = {"boosting": cv2.legacy.TrackerBoosting_create(),
                       "mil": cv2.legacy.TrackerMIL_create(),
                       "kcf": cv2.legacy.TrackerKCF_create(),
@@ -231,12 +233,14 @@ def videos(video):
         img=orginalFrame
 
         key = cv2.waitKey(1)
+        
         # trackbar dan gelen değerleri değişkenlere atıyoruz
         color = getHSVTrackbar()
 
         #trackbarlardaki bilgiyi alıyoruz
         scaleVal = 1 + (cv2.getTrackbarPos("Scale", "Scale and Neighb/Box") / 1000)
         neighbor = cv2.getTrackbarPos("Neighb/Box", "Scale and Neighb/Box")
+        choise = cv2.getTrackbarPos("Cascade On", "Contour")
 
         # eğer video oynuyorsa işlemleri yapıyor
         if success:
@@ -244,86 +248,86 @@ def videos(video):
             # videoyu daha yavaş bir şekilde oynatılması için bekleniyor ve video oynatılıyor
             time.sleep(0.01)
             cv2.imshow("Orginal Video", orginalFrame)
-
-            # hsvde çıkan bazı gürültüleri yok etmek için blur uygulanıyor
-            blurred = cv2.GaussianBlur(orginalFrame, (15, 15), 0)
-            blurredHsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-
-            if key == ord("c"):
-                colorPicker(orginalFrame, blurredHsv)
-
-            # Seçilen renk aralığında maske yapılıyor
-            mask = cv2.inRange(blurredHsv, color[1], color[0])
-
-            # maskedeki bazı kusurları düzeltilmesi için erosion ve dilation işlemleri yapılıyor
-            mask = cv2.erode(mask, None, iterations=4)
-            mask = cv2.dilate(mask, None, iterations=4)
-            # cv2.imshow("erode + dilate mask",mask)
-
-            # Maske görüntüsünde oluşan kenarlara göre kontur buluyor
-            (contours, _) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            center = None
-
-            if not track:
-                #tespit edilen nesneyi değişkene atıyoruz
-                nesne = cascade.detectMultiScale(orginalFrame, scaleVal, neighbor)
-                
-                #tespit edilen nesnenin etrafına dikdörtgen çiziliyor
-                for (x, y, w, h) in nesne:
-                    cv2.putText(orginalFrame, cascadeName, (x, y - 10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (0, 255, 0))
-                    cv2.rectangle(orginalFrame, (x, y), (x + w, y + h), (0, 255, 0), 5)
-                cv2.imshow("Contour", orginalFrame)
-                
-            #tuşa basıldığı zaman tespit edilen nesne varsa tıklanan en yakın nesneyi takip etmesi için
-            if key==ord("t"):
-                cv2.setMouseCallback("Contour", click_event)
-                cv2.waitKey(0)
-                if(len(nesne)>0):
-                    centerRect=[]
-                    mouseCenter=[]
-                    RectN=[]
-                    mouseCenter.append((mouseX,mouseY))
-                    for (x,y,w,h) in nesne:
-                        if((x<=mouseX)and(x+w>=mouseX)and ((y<=mouseY)and(y+h>=mouseY))):
-                            RectN.append((x,y,w,h))
-                            recx=int(np.round(x+(w/2)))
-                            recy=int(np.round(y+(h/2)))
-                            centerRect.append((recx,recy))         
-                    distance=dist.cdist(mouseCenter,centerRect)
-                    distanceIndex=np.argmin(distance)
-                    RectN=RectN[distanceIndex]
-                    drawBox(orginalFrame,RectN)
-                    track=True
-                    tracker.init(orginalFrame, RectN)
             
-
-            # eğer kontur varsa içine girilir
-            if len(contours) > 0 and not track:
-                # ekrandaki en büyük konturu c değişkenine atılıyor
-                c = max(contours, key=cv2.contourArea)
-
-                # konturdan gelen görüntüyü oluşturabileceği en küçük dikdörtgeni özelliklerini rect değişkenine atıyor
-                rect = cv2.minAreaRect(c)
-
-                # gelen değerler ile bir kutu şekli yapıyoriz
-                bbox = []
-
-                if key == ord("a"):
-                    bbox = cv2.boundingRect(c)
-                    drawBox(orginalFrame, bbox)
-                    track = True
-                    tracker.init(orginalFrame, bbox)
-
-                box = cv2.boxPoints(rect)
-                box = np.int64(box)
-
-                # oluşan konturları görüntüye çiziyor
-                cv2.drawContours(orginalFrame, [box], 0, (255, 0, 0), thickness=2)
-
-                # Konturdaki orta noktayı buluyoruz ve bir nokta çiziyoruz
-                center = (int(np.round(rect[0][0])), int(np.round(rect[0][1])))
-                cv2.circle(orginalFrame, center, 5, (255, 0, 255), -1)
-                cv2.putText(orginalFrame, "Lost", (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            center = None
+            if choise==0:
+                # hsvde çıkan bazı gürültüleri yok etmek için blur uygulanıyor
+                blurred = cv2.GaussianBlur(orginalFrame, (15, 15), 0)
+                blurredHsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+    
+                if key == ord("c"):
+                    colorPicker(orginalFrame, blurredHsv)
+    
+                # Seçilen renk aralığında maske yapılıyor
+                mask = cv2.inRange(blurredHsv, color[1], color[0])
+    
+                # maskedeki bazı kusurları düzeltilmesi için erosion ve dilation işlemleri yapılıyor
+                mask = cv2.erode(mask, None, iterations=4)
+                mask = cv2.dilate(mask, None, iterations=4)
+                # cv2.imshow("erode + dilate mask",mask)
+    
+                # Maske görüntüsünde oluşan kenarlara göre kontur buluyor
+                (contours, _) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                
+                 # eğer kontur varsa içine girilir
+                if len(contours) > 0 and not track:
+                    # ekrandaki en büyük konturu c değişkenine atılıyor
+                    c = max(contours, key=cv2.contourArea)
+    
+                    # konturdan gelen görüntüyü oluşturabileceği en küçük dikdörtgeni özelliklerini rect değişkenine atıyor
+                    rect = cv2.minAreaRect(c)
+    
+                    # gelen değerler ile bir kutu şekli yapıyoriz
+                    bbox = []
+    
+                    if key == ord("a"):
+                        bbox = cv2.boundingRect(c)
+                        drawBox(orginalFrame, bbox)
+                        track = True
+                        tracker.init(orginalFrame, bbox)
+    
+                    box = cv2.boxPoints(rect)
+                    box = np.int64(box)
+    
+                    # oluşan konturları görüntüye çiziyor
+                    cv2.drawContours(orginalFrame, [box], 0, (255, 0, 0), thickness=2)
+    
+                    # Konturdaki orta noktayı buluyoruz ve bir nokta çiziyoruz
+                    center = (int(np.round(rect[0][0])), int(np.round(rect[0][1])))
+                    cv2.circle(orginalFrame, center, 5, (255, 0, 255), -1)
+                    cv2.putText(orginalFrame, "Lost", (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            if choise==1:
+                if not track:
+                    #tespit edilen nesneyi değişkene atıyoruz
+                    nesne = cascade.detectMultiScale(orginalFrame, scaleVal, neighbor)
+                    
+                    #tespit edilen nesnenin etrafına dikdörtgen çiziliyor
+                    for (x, y, w, h) in nesne:
+                        cv2.putText(orginalFrame, cascadeName, (x, y - 10), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (0, 255, 0))
+                        cv2.rectangle(orginalFrame, (x, y), (x + w, y + h), (0, 255, 0), 5)
+                    cv2.imshow("Contour", orginalFrame)
+                    
+                #tuşa basıldığı zaman tespit edilen nesne varsa tıklanan en yakın nesneyi takip etmesi için
+                if key==ord("t"):
+                    cv2.setMouseCallback("Contour", click_event)
+                    cv2.waitKey(0)
+                    if(len(nesne)>0):
+                        centerRect=[]
+                        mouseCenter=[]
+                        RectN=[]
+                        mouseCenter.append((mouseX,mouseY))
+                        for (x,y,w,h) in nesne:
+                            if((x<=mouseX)and(x+w>=mouseX)and ((y<=mouseY)and(y+h>=mouseY))):
+                                RectN.append((x,y,w,h))
+                                recx=int(np.round(x+(w/2)))
+                                recy=int(np.round(y+(h/2)))
+                                centerRect.append((recx,recy))         
+                        distance=dist.cdist(mouseCenter,centerRect)
+                        distanceIndex=np.argmin(distance)
+                        RectN=RectN[distanceIndex]
+                        drawBox(orginalFrame,RectN)
+                        track=True
+                        tracker.init(orginalFrame, RectN)
 
             if track:
                 ret, bbox = tracker.update(orginalFrame)
@@ -363,7 +367,7 @@ def videos(video):
                 cv2.line(orginalFrame, (0, i - (ss * 50 * 2)), (width, i - (ss * 50 * 2)), (0, 255, 0), 1)
 
             # eğer kontur veya track
-            if len(contours) > 0 or track:
+            if track:
                 # nesnenin merkezinin orta noktadan uzaklığı çıkarılıyor
                 xc = int(center[0]) - x0
                 yc = y0 - int(center[1])
@@ -405,7 +409,7 @@ fov = calibrateAndFov()
 gKuzeyX = int(input("Lütfen pusula yardımı ile kameranızın baktığı yönü derece olarak giriniz:"))
 gKuzeyY = int(input("Lütfen kameranızın baktığı yukarı-aşağı doğru baktığı yönü açı derecesi olarak giriniz:"))
 
-videos(0)
+videos("penVideo.mp4")
 
 
 
