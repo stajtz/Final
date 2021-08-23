@@ -17,8 +17,8 @@ pts = deque(maxlen=buffer_size)
 def empty(a): pass
 
 #istenilen cascadenin dosya konumu verilir
-folderName="kirtasiye-cascade"
-cascadeName = "kalem"
+folderName="mutfak-cascade"
+cascadeName = "bardak"
 cascade = cv2.CascadeClassifier(folderName+"/"+cascadeName + ".xml")
 
 # Trackbarları oluşturuyor
