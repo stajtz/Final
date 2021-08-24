@@ -17,8 +17,8 @@ pts = deque(maxlen=buffer_size)
 def empty(a): pass
 
 #istenilen cascadenin dosya konumu verilir
-folderName="mutfak-cascade"
-cascadeName = "bardak"
+folderName="kirtasiye-cascade"
+cascadeName = "kalem"
 cascade = cv2.CascadeClassifier(folderName+"/"+cascadeName + ".xml")
 
 # Trackbarları oluşturuyor
@@ -183,28 +183,55 @@ def drawBox(img, bbox):
     cv2.putText(img, "Tracking", (25, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
 
 
-mouseX=-1
-mouseY=-1
 key=-1
 img=None
+nesne=None
+opencvTrackers = {"boosting": cv2.legacy.TrackerBoosting_create(),
+                      "mil": cv2.legacy.TrackerMIL_create(),
+                      "kcf": cv2.legacy.TrackerKCF_create(),
+                      "tld": cv2.legacy.TrackerTLD_create(),
+                      "medianflow": cv2.legacy.TrackerMedianFlow_create(),
+                      "mosse": cv2.legacy.TrackerMOSSE_create(),
+                      "csrt": cv2.legacy.TrackerCSRT_create()}
+trackerName = "kcf"
+tracker = opencvTrackers[trackerName]
 #mouse tıklamasını alan bir fonksiyon
-def click_event(event, mx, my, flags, params):
+def click_event(event, mouseX, mouseY, flags, params):
   
-    global mouseX,mouseY,key
+    global track,tracker,nesne
     
     #mouse tıklama eventi ve t tuşuna basılmışsa mouse x ve y koordinatlarını değişkenlere atayıp contour üzerine nokta bırakıyor
-    if event == cv2.EVENT_LBUTTONDOWN and key==ord("t"):
-        mouseX,mouseY=mx,my
-        replace=img.copy()
-        cv2.circle(replace, (mx, my),3,(255, 0, 255), -1)
-        cv2.imshow("Contour",replace)
-    elif key==-1:
-        mouseX,mouseY=-1,-1
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if len(nesne)>0:
+            centerRect=[]
+            #mouse noktasını tutan değişken
+            mouseCenter=[]
+            #mouse noktası içerisinde olan nesne tespit kareleri
+            RectN=[]
+            #cdist algoritmasını kullanabilmemiz için mouse noktalarını bir listeye atıyoruz
+            mouseCenter.append((mouseX,mouseY))
+            #tespit edilen kutuları tek tek dolaşıp mouse noktasının içerisinde olup olmadığını bakıyoruz
+            for (casx,casy,casw,cash) in nesne:
+                if((casx<=mouseX)and(casx+casw>=mouseX)and ((casy<=mouseY)and(casy+cash>=mouseY))):
+                    #içerisinde ise o kutuyu bir değişkene atıyoruz ve orta noktasını da bir değişkene atıyoruz
+                    RectN.append((casx,casy,casw,cash))
+                    recx=int(np.round(casx+(casw/2)))
+                    recy=int(np.round(casy+(cash/2)))
+                    centerRect.append((recx,recy))         
+            #oluşan kutu dizisindeki orta noktaların mouse noktası ile uzaklığına bakıyoruz
+            distance=dist.cdist(mouseCenter,centerRect)
+            #en yakın uzaklıktaki indexi alıyoruz ve o kutuyu değişkene atıyoruz
+            distanceIndex=np.argmin(distance)
+            RectN=RectN[distanceIndex]
+            #bulunan kutunun etrafını çiziyoruz ve takip algoritmamızı başlatıyoruz
+            drawBox(img,RectN)
+            track=True
+            tracker.init(img, RectN)
 
 # videolar arası geçiş yaparken kodları bir daha yapmasın diye fonksiyon içerisinde
 def videos(video):
     
-    global key,img
+    global key,img,tracker,track,nesne
     # İstediğimiz renkleri aralığını seçmek için trackbar koyuyoruz
     createHSVTrackbar()
     # nesne tespiit ayarlaması yapmak için
@@ -215,15 +242,7 @@ def videos(video):
 
     # işleyeceği videoyu alıyor
     capture = cv2.VideoCapture(video)
-    opencvTrackers = {"boosting": cv2.legacy.TrackerBoosting_create(),
-                      "mil": cv2.legacy.TrackerMIL_create(),
-                      "kcf": cv2.legacy.TrackerKCF_create(),
-                      "tld": cv2.legacy.TrackerTLD_create(),
-                      "medianflow": cv2.legacy.TrackerMedianFlow_create(),
-                      "mosse": cv2.legacy.TrackerMOSSE_create(),
-                      "csrt": cv2.legacy.TrackerCSRT_create()}
-    trackerName = "kcf"
-    tracker = opencvTrackers[trackerName]
+    
     track = False
 
     while True:
@@ -308,6 +327,7 @@ def videos(video):
                     cv2.imshow("Contour", orginalFrame)
                     
                 #tuşa basıldığı zaman tespit edilen nesne varsa tıklanan en yakın nesneyi takip etmesi için
+                """
                 if key==ord("t"):
                     #mouse tıklama eventi başlatıyoruz
                     cv2.setMouseCallback("Contour", click_event)
@@ -339,6 +359,7 @@ def videos(video):
                         drawBox(orginalFrame,RectN)
                         track=True
                         tracker.init(orginalFrame, RectN)
+                """
 
             if track:
                 ret, bbox = tracker.update(orginalFrame)
@@ -406,7 +427,7 @@ def videos(video):
                 if (uzakliky > 0):
                     cv2.putText(orginalFrame, "Yukseliyor", (25, 115), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (0, 0, 255),
                                 2)
-
+            cv2.setMouseCallback("Contour", click_event)
             # oluşan konturlu görüntüyü gösteriliyor
             cv2.imshow("Contour", orginalFrame)
 
