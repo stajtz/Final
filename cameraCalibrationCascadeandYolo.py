@@ -14,12 +14,12 @@ buffer_size = 32
 pts = deque(maxlen=buffer_size)
 
 #yolo klasör ve dosya isimleri
-yoloFolderName = "yolo-stuff/"
+yoloFolderName = "kirtasiye-yolo/"
 main = yoloFolderName.split("-")
 main = main[0]
-yoloModel = "yolov3.weights"
-yoloConfig = "yolov3.cfg"
-yoloObjectNames = "coco.names"
+yoloModel = "yolo4.weights"
+yoloConfig = "yolo4.cfg"
+yoloObjectNames = "object.names"
 
 #yolonun tespit ettiği nesnelerin isimleri isimlerinin olduğu dosyadan okunarak classes arrayine atılır
 classes = []
@@ -416,21 +416,19 @@ def videos(video):
                         tracker.init(orginalFrame, RectN)
                 """
             if choise == 2:
-
-                # görüntüden 4 boyutlu bir blob oluşturur. blob aynı yükseklik ve genişlikteki işlenmiş görüntü topluluğudur.
-                blob = cv2.dnn.blobFromImage(img, 1 / 255, (416, 416), (0, 0, 0), swapRB=True, crop=False)
-                #bloobları networke input olarak verilmesini sağlar
-                net.setInput(blob)
-
-                #çıktıların tabakalarını ayarlar
-                output_layers_names = net.getUnconnectedOutLayersNames()
-                layerOutputs = net.forward(output_layers_names)
-
-                boxes = []
-                confidences = []
-                class_ids = []
-
                 if not track:
+                    # görüntüden 4 boyutlu bir blob oluşturur. blob aynı yükseklik ve genişlikteki işlenmiş görüntü topluluğudur.
+                    blob = cv2.dnn.blobFromImage(img, 1 / 255, (416, 416), (0, 0, 0), swapRB=True, crop=False)
+                    #bloobları networke input olarak verilmesini sağlar
+                    net.setInput(blob)
+    
+                    #çıktıların tabakalarını ayarlar
+                    output_layers_names = net.getUnconnectedOutLayersNames()
+                    layerOutputs = net.forward(output_layers_names)
+    
+                    boxes = []
+                    confidences = []
+                    class_ids = []
 
                     for output in layerOutputs:
                         for detection in output:
@@ -445,10 +443,10 @@ def videos(video):
                                 w = int(detection[2] * width)
                                 h = int(detection[3] * height)
 
-                                x = int(center_x - w / 2)
-                                y = int(center_y - h / 2)
+                                yolox = int(center_x - w / 2)
+                                yoloy = int(center_y - h / 2)
 
-                                boxes.append([x, y, w, h])
+                                boxes.append([yolox, yoloy, w, h])
                                 confidences.append((float(confidence)))
                                 class_ids.append(class_id)
 
@@ -456,15 +454,13 @@ def videos(video):
                     indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
                     #isim için yazı fontu ve belirlenen nesneler için rastgele renkler seçilir
                     font = cv2.FONT_HERSHEY_PLAIN
-                    colors = np.random.uniform(0, 255, size=(len(boxes), 3))
                     # uyumluluğu %50den fazla olan nesneler için oluşturulmuş index için isim, uyumluluk değişkenlere atılı, seçilen renk belirlenir ve dikdörtgeni çizilir
                     if len(indexes) > 0:
                         for i in indexes.flatten():
-                            x, y, w, h = boxes[i]
+                            yolox, yoloy, w, h = boxes[i]
                             label = str(classes[class_ids[i]])
                             confidence = str(round(confidences[i], 2))
-                            color = colors[i]
-                            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+                            cv2.rectangle(img, (yolox, yoloy), (yolox + w, yoloy + h), (0,255,0), 2)
                             #eğer mousela tıklanmışsa tıklanan alanda uyumlu nesne olup olmadığı kontrol edilir varsa takip başlatılır
                             if (Kontrol == True):
                                 if (pointInRect(Point, boxes[i]) == True):
@@ -480,7 +476,7 @@ def videos(video):
                         drawBoxforYolo(img, bbox, label, confidence, main)
                     else:
                         cv2.putText(img, "Lost", (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                    center = (int(np.round(bbox[0] + (bbox[2] / 2))), int(np.round(bbox[1] + (bbox[3] / 2))))
+                    center = (int(np.round(x + (bbox[2] / 2))), int(np.round(y + (bbox[3] / 2))))
                     cv2.circle(orginalFrame, center, 5, (255, 0, 255), -1)
 
             if track and choise != 2:
@@ -489,7 +485,7 @@ def videos(video):
                     drawBox(orginalFrame, bbox)
                 else:
                     cv2.putText(orginalFrame, "Lost", (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                center = (int(np.round(bbox[0] + (bbox[2] / 2))), int(np.round(bbox[1] + (bbox[3] / 2))))
+                center = (int(np.round(x + (bbox[2] / 2))), int(np.round(y + (bbox[3] / 2))))
                 cv2.circle(orginalFrame, center, 5, (255, 0, 255), -1)
 
             # Orta noktaları arkasında bir çizgi şeklinde iz bırakması için bir deque atılıyor
