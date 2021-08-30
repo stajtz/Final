@@ -1,0 +1,66 @@
+YOLO Nedir:
+YOLO, konvolüsyonel sinir ağlarını (CNN) kullanarak nesne tespiti yapan bir algoritmadır. Açılımı “You Only Look Once“, yani “Sadece Bir Kez Bak“. Bu adın seçilmesinin nedeni algoritmanın nesne tespitini tek seferde yapabilecek kadar hızlı olmasıdır. YOLO algoritması çalışmaya başladığında görüntülerdeki veya videolardaki nesneleri ve bu nesnelerin koordinatlarını aynı anda tespit eder.
+YOLO algoritması, öncelikle görüntüyü bölgelere ayırır. Daha sonra her bir bölgedeki nesneleri çevreleyen kutuları (bounding box) çizer ve her bir bölgede nesne bulunma olasılığı ile ilgili bir hesabı yapar.
+Ayrıca her bir bounding box için bir güven skoru hesaplar. Bu skor bize o nesnenin yüzde kaç olasılıkla tahmin edilen nesne olduğunu söyle. Örneğin, bulunan bir araba için güven skoru 0,3 ise bunun anlamı o nesnenin araba olma olasığının oldukça düşük olduğudur. Diğer bir deyişle, YOLO yaptığı tahminin güvenilmez olduğunu bize söyler. 
+YOLO algoritmasının diğer algoritmalardan daha hızlı olmasının sebebi resmin tamamını tek seferde nöral bir ağdan geçiriyor olmasıdır.
+
+
+Kullanım:
+Model eğitilirken GoogleColab kullanılmıştır. Bunun nedeni GPU’dan tasarruf etmek. GoogleColab’tan bağlanmak için drive üzerinde genel bir Klasör oluşturulur (Benimki YoloDeneme2).
+Dataseti Oluşturma:
+1.	Öncelikle tespit edilmesi istenen nesne/nesneler için fotoğraf toplanır.
+2.	Toplanan nesneler yolo formatı ayarlanarak label yapılır. Label yaparken kullandığım program(https://github.com/tzutalin/labelImg). Label yaparken programda fotoğraf açılır ve fotoğrafta nesnenin tamamını kaplayacak şekilde olan en küçük dikdörtgen çizilir. Bu çizilen alanada bulunan nesnenin adı yazılır ve kaydedilir. Program yolo için fotoğrafın isminde bir xlm dosyası oluşturur.
+3.	Nesnelere verilen isimler classes.txt dosyasına kaydedilir ayrıca bu classes.txt dosyası classes.names olarak kaydedilir.
+4.	Google Colab’ta oluşturulan klasörün(YoloDeneme2) içine custom_data klasörü açılır ve veriler, classes.txt ve classes.names buraya yüklenir. 
+Datasetini Eğitmek:
+1.	Google Colab’da kod satırına 
+from google.colab import drive
+drive.mount("/content/drive")
+yazılır. Kod çalıştırıldığı zaman bizden drive’a bağlanmak için hesap seçmemizi ve şifre girmemizi isteyecek. İstenilenler yapılınca drive’a bağlanılır.
+2.	Darkent’i indirmek için Drive’da oluşturulan klasörün (YoloDeneme2) içine darknet klasörü oluşturulur.
+3.	GoogleColab’da yeni bir kod satırı açılır ve darknet klasörün içine girmek için kod çalıştırlır
+%cd "/content/drive/MyDrive/YoloDeneme2/darknet"
+
+4.	Darkent klasörünün içine girdikten sonra buraya githubtan (https://github.com/AlexeyAB/darknet.git) darknet indirilir.
+!git clone "https://github.com/AlexeyAB/darknet.git" "/content/drive/MyDrive/YoloDeneme2/darknet"
+5.	Darknet’i compile etmek için !make komutu çalıştırılır.
+
+6.	Dosya konumlarını belirlemek için https://github.com/jakkcoder/training_yolo_custom_object_detection_files  adresinden indirilen creating-files-data-and-name.py ve creating-train-and-test-txt-files.py dosyalarındaki path custom_data olarak değiştirilerek custom_data klasörüne konulur.
+7.	GoogleColab üzerinde darknet klasöründen çıkmak be YoloDeneme2 klasörüne dönmek için aşağıda komut çalıştırılır.
+%cd "/content/drive/MyDrive/YoloDeneme2"
+
+8.	Drive’da bulunan dosyaların konumlarını tutması için aşağıdaki komut çalıştırılır ve labelled_data.data dosyası oluşturulur.
+!python custom_data/creating-files-data-and-name.py
+9.	Custom_data dosyası içine test.txt ve train.txt oluşturmak için aşağıdaki komut çalıştırılır.
+!python custom_data/creating-train-and-test-txt-files.py
+
+10.	Darkent klasöründe bulunan makefile klasörü aşağıdaki gibi değiştirilir ve değiştirilen dosya aynı isimle yüklenir.
+ 
+11.	Darknet klasörünün içindeki cfg klasöründeki yolov3.cfg(ben yolo3 kullandığım için başka versiyonlar kullanılcaksa o versiyonlar üzerinde işlem yapılmalı) dosyası indirilir ve Eğitme için ayalanır. Eğitmek için Testing’in altında bulunan batch ve subdivision comment satırı haline getirilimeli ve Trainingin altında bulunanlar uncomment yapılmalı.
+max_batches değeri number of class* 2000’e eşitlenmeli ve steps değerleri de max_batches’a göre ayarlanmalı. (benim 3 sınıfım var, max_batches = 6000 steps=4800,5200 olarak ayarladım.). 
+Son olarak Dosyada yolo aratılmalı ve 3 [yolo] kısmında da aşağıdaki şekilde classes sayısı girilmeli ve filters kısmına (number of class + 5) *3 değeri girilmeli. 
+ 
+Dosya bu şekilde kaydedildilir ve yolov3_custom.cfg ismiyle kaydedilerek yolov3.cfg’nin yanına yüklenir.
+12.	YoloDeneme2 içerine custom_weight klasörü açılarak kendi datasetimize optimize etmek için pre-trained bir .weight dosyası konulur. Aşağıdaki komut ile indirdim.
+!wget “https://pjreddie.com/media/files/darknet53.conv.74”
+13.	En son olarak YoloDeneme2 klasörünün içine benim data setime göre oluşan .weight dosyalarını kaydetmek için backup klasörü açılır.
+14.	GoogleColab defter ayarlarından GPU ile bağlanır ve kodlar en baştan çalıştırılır.(indirmeler ve github’dan yapılan clone kodları hariç).
+15.	En son aşağıdaki kod ile dataseti eğitilir. !darknet/darknet detector train custom_data/labelled_data.data darknet/cfg/yolov3_custom.cfg custom_weight/darknet53.conv.74 -dont_show
+Kullanımı:
+1.	Drive’daki backup klasörünün içinden yolov3_custom_6000.weight (yolo3 kullandığım ve max_batches’ım 6000 olduğu için bu isimde)dosyası ve darknet’e yüklediğimiz yolov3_custom.cfg dosyaları indirilir.
+2.	OpenCV’ye tanıtılması için aşağıdaki komut satırı kullanılır.
+net = cv.dnn.readNetFromDarknet('yolov3_custom.cfg', 'yolov3_custom_6000.weights')
+
+
+
+
+
+
+
+
+Kaynakça:
+https://medium.com/deep-learning-turkiye/yolo-algoritmas%C4%B1n%C4%B1-anlamak-290f2152808f
+https://smartera.com.tr/gercek-zamanli-nesne-takibireal-time-object-detection-w-yolo-python/
+https://opencv-tutorial.readthedocs.io/en/latest/yolo/yolo.html
+https://www.pyimagesearch.com/2017/11/06/deep-learning-opencvs-blobfromimage-works/
+https://www.youtube.com/watch?v=hTCmL3S4Obw&t=1688s
