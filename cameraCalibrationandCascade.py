@@ -13,6 +13,15 @@ buffer_size = 32
 # pts bahsedilen merkezlerin noktalari
 pts = deque(maxlen=buffer_size)
 
+yoloFolderName="kirtasiye-yolo/"
+yoloModel ="yolo4.weights"
+yoloConfig="yolo4.cfg"
+yoloObjectNames ="object.names"
+classes = []
+with open(yoloFolderName+yoloObjectNames, "r") as f:
+    classes = f.read().splitlines()
+
+net = cv2.dnn.readNet(yoloFolderName+yoloModel, yoloFolderName+yoloConfig)
 
 def empty(a): pass
 
@@ -238,7 +247,7 @@ def videos(video):
     createTrackbar()
 
     cv2.namedWindow("Contour")
-    cv2.createTrackbar("Cascade On", "Contour", 1, 1, empty)
+    cv2.createTrackbar("Color/Cascade/Yolo", "Contour", 2, 2, empty)
 
     # işleyeceği videoyu alıyor
     capture = cv2.VideoCapture(video)
@@ -259,7 +268,7 @@ def videos(video):
         #trackbarlardaki bilgiyi alıyoruz
         scaleVal = 1 + (cv2.getTrackbarPos("Scale", "Scale and Neighb/Box") / 1000)
         neighbor = cv2.getTrackbarPos("Neighb/Box", "Scale and Neighb/Box")
-        choise = cv2.getTrackbarPos("Cascade On", "Contour")
+        choise = cv2.getTrackbarPos("Color/Cascade/Yolo", "Contour")
 
         # eğer video oynuyorsa işlemleri yapıyor
         if success:
@@ -360,14 +369,52 @@ def videos(video):
                         track=True
                         tracker.init(orginalFrame, RectN)
                 """
-
+            if choise==2:
+                if not track:
+                #yolo kodları
+                    height, width, _ = orginalFrame.shape
+                    blob = cv2.dnn.blobFromImage(orginalFrame, 1 / 255, (416, 416), (0, 0, 0), crop=False)
+                    net.setInput(blob)
+                    output_layers_names = net.getUnconnectedOutLayersNames()
+                    layerOutputs = net.forward(output_layers_names)
+                    boxes = []
+                    confidences = []
+                    class_ids = []
+                    for output in layerOutputs:
+                        for detection in output:
+                            scores = detection[5:]
+                            class_id = np.argmax(scores)
+                            confidence = scores[class_id]
+                            if confidence > 0.5:
+                                center_x = int(detection[0] * width)
+                                center_y = int(detection[1] * height)
+                                w = int(detection[2] * width)
+                                h = int(detection[3] * height)
+                                x = int(center_x - w / 2)
+                                y = int(center_y - h / 2)
+                                boxes.append([x, y, w, h])
+                                confidences.append((float(confidence)))
+                                class_ids.append(class_id)
+                    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.3)
+                    font = cv2.FONT_HERSHEY_PLAIN
+                    colors = np.random.uniform(0, 255, size=(len(boxes), 3))
+                    if len(indexes) > 0:
+                        for i in indexes.flatten():
+                            nesne = [boxes[i]]
+                            casx, casy, casw, cash = boxes[i]
+                            label = str(classes[class_ids[i]])
+                            confidence = str(round(confidences[i], 2))
+                            color = colors[i]
+                            cv2.rectangle(img, (casx, casy), (casx + casw, casy + cash), color, 2)
+                            cv2.putText(img, label + " " + confidence, (casx, casy + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                                                    
             if track:
                 ret, bbox = tracker.update(orginalFrame)
                 if ret:
                     drawBox(orginalFrame, bbox)
                 else:
                     cv2.putText(orginalFrame, "Lost", (25, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-                center = (int(np.round(x + (bbox[2] / 2))), int(np.round(y + (bbox[3] / 2))))
+                center = (int(np.round(bbox[0] + (bbox[2] / 2))), int(np.round(bbox[1] + (bbox[3] / 2))))
                 cv2.circle(orginalFrame, center, 5, (255, 0, 255), -1)
 
             # Orta noktaları arkasında bir çizgi şeklinde iz bırakması için bir deque atılıyor
