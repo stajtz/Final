@@ -295,7 +295,7 @@ def videos(video):
 
     cv2.namedWindow("Contour")
     cv2.createTrackbar("Color/Cascade/Yolo", "Contour", 2, 2, empty)
-    cv2.createTrackbar("YoloBox", "Contour", 13, 20, empty)
+    cv2.createTrackbar("YoloBox", "Contour", 12, 20, empty)
 
     # işleyeceği videoyu alıyor
     capture = cv2.VideoCapture(video)
@@ -425,7 +425,7 @@ def videos(video):
                 if not track:
                     yoloBox=cv2.getTrackbarPos("YoloBox", "Contour")
                     # görüntüden 4 boyutlu bir blob oluşturur. blob aynı yükseklik ve genişlikteki işlenmiş görüntü topluluğudur.
-                    blob = cv2.dnn.blobFromImage(img, 1 / 255, (32+32*yoloBox, 641), (0, 0, 0), swapRB=True, crop=False)
+                    blob = cv2.dnn.blobFromImage(img, 1 / 255, (32+32*yoloBox, 32+32*yoloBox), (0, 0, 0), swapRB=True, crop=False)
                     #bloobları networke input olarak verilmesini sağlar
                     net.setInput(blob)
     
