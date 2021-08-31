@@ -72,9 +72,9 @@ def getHSVTrackbar():
 
 # Seçilen alandaki bölgeyi kırpıyor ve max ve min değerleri bulup trackbarların değerlerini güncelliyor
 def colorPicker(frame, hsvFrame):
-    cropCords = cv2.selectROI("Orginal Video", frame, False)
-    x, y, w, h = int(cropCords[0]), int(cropCords[1]), int(cropCords[2]), int(cropCords[3])
-    cropImg = hsvFrame[y:y + h, x:x + w]
+    cropCords = cv2.selectROI("Orginal Video", frame)
+    rx, ry, w, h = int(cropCords[0]), int(cropCords[1]), int(cropCords[2]), int(cropCords[3])
+    cropImg = hsvFrame[ry:ry + h, rx:rx + w]
     h, s, v = cv2.split(cropImg)
     cv2.setTrackbarPos("hueMax", "HSV", np.amax(h))
     cv2.setTrackbarPos("hueLow", "HSV", np.amin(h))
@@ -241,7 +241,7 @@ opencvTrackers = {"boosting": cv2.legacy.TrackerBoosting_create(),
                   "medianflow": cv2.legacy.TrackerMedianFlow_create(),
                   "mosse": cv2.legacy.TrackerMOSSE_create(),
                   "csrt": cv2.legacy.TrackerCSRT_create()}
-trackerName = "kcf"
+trackerName = "csrt"
 tracker = opencvTrackers[trackerName]
 
 choise = None
@@ -255,31 +255,33 @@ def click_event(event, mouseX, mouseY, flags, params):
         Kontrol = True
         Point = [mouseX, mouseY]
         if choise != 2:
-            if len(nesne) > 0:
-                centerRect = []
-                # mouse noktasını tutan değişken
-                mouseCenter = []
-                # mouse noktası içerisinde olan nesne tespit kareleri
-                RectN = []
-                # cdist algoritmasını kullanabilmemiz için mouse noktalarını bir listeye atıyoruz
-                mouseCenter.append((mouseX, mouseY))
-                # tespit edilen kutuları tek tek dolaşıp mouse noktasının içerisinde olup olmadığını bakıyoruz
-                for (casx, casy, casw, cash) in nesne:
-                    if ((casx <= mouseX) and (casx + casw >= mouseX) and ((casy <= mouseY) and (casy + cash >= mouseY))):
-                        # içerisinde ise o kutuyu bir değişkene atıyoruz ve orta noktasını da bir değişkene atıyoruz
-                        RectN.append((casx, casy, casw, cash))
-                        recx = int(np.round(casx + (casw / 2)))
-                        recy = int(np.round(casy + (cash / 2)))
-                        centerRect.append((recx, recy))
-                        # oluşan kutu dizisindeki orta noktaların mouse noktası ile uzaklığına bakıyoruz
-                distance = dist.cdist(mouseCenter, centerRect)
-                # en yakın uzaklıktaki indexi alıyoruz ve o kutuyu değişkene atıyoruz
-                distanceIndex = np.argmin(distance)
-                RectN = RectN[distanceIndex]
-                # bulunan kutunun etrafını çiziyoruz ve takip algoritmamızı başlatıyoruz
-                drawBox(img, RectN)
-                track = True
-                tracker.init(img, RectN)
+            if nesne is not None:
+                
+                if len(nesne) > 0:
+                    centerRect = []
+                    # mouse noktasını tutan değişken
+                    mouseCenter = []
+                    # mouse noktası içerisinde olan nesne tespit kareleri
+                    RectN = []
+                    # cdist algoritmasını kullanabilmemiz için mouse noktalarını bir listeye atıyoruz
+                    mouseCenter.append((mouseX, mouseY))
+                    # tespit edilen kutuları tek tek dolaşıp mouse noktasının içerisinde olup olmadığını bakıyoruz
+                    for (casx, casy, casw, cash) in nesne:
+                        if ((casx <= mouseX) and (casx + casw >= mouseX) and ((casy <= mouseY) and (casy + cash >= mouseY))):
+                            # içerisinde ise o kutuyu bir değişkene atıyoruz ve orta noktasını da bir değişkene atıyoruz
+                            RectN.append((casx, casy, casw, cash))
+                            recx = int(np.round(casx + (casw / 2)))
+                            recy = int(np.round(casy + (cash / 2)))
+                            centerRect.append((recx, recy))
+                            # oluşan kutu dizisindeki orta noktaların mouse noktası ile uzaklığına bakıyoruz
+                    distance = dist.cdist(mouseCenter, centerRect)
+                    # en yakın uzaklıktaki indexi alıyoruz ve o kutuyu değişkene atıyoruz
+                    distanceIndex = np.argmin(distance)
+                    RectN = RectN[distanceIndex]
+                    # bulunan kutunun etrafını çiziyoruz ve takip algoritmamızı başlatıyoruz
+                    drawBox(img, RectN)
+                    track = True
+                    tracker.init(img, RectN)
 
 font = None
 
@@ -293,12 +295,16 @@ def videos(video):
 
     cv2.namedWindow("Contour")
     cv2.createTrackbar("Color/Cascade/Yolo", "Contour", 2, 2, empty)
+    cv2.createTrackbar("YoloBox", "Contour", 13, 20, empty)
 
     # işleyeceği videoyu alıyor
     capture = cv2.VideoCapture(video)
 
     track = False
-
+    prev_frame_time = 0
+     
+    # used to record the time at which we processed current frame
+    new_frame_time = 0
     while True:
 
         # videonun çalışıp çalışmadığı ve gelen kareleri değişkene atılıyor
@@ -306,7 +312,7 @@ def videos(video):
         img = orginalFrame
         height, width, _ = img.shape
         key = cv2.waitKey(1)
-
+        new_frame_time = time.time()
         # trackbar dan gelen değerleri değişkenlere atıyoruz
         color = getHSVTrackbar()
 
@@ -417,8 +423,9 @@ def videos(video):
                 """
             if choise == 2:
                 if not track:
+                    yoloBox=cv2.getTrackbarPos("YoloBox", "Contour")
                     # görüntüden 4 boyutlu bir blob oluşturur. blob aynı yükseklik ve genişlikteki işlenmiş görüntü topluluğudur.
-                    blob = cv2.dnn.blobFromImage(img, 1 / 255, (416, 416), (0, 0, 0), swapRB=True, crop=False)
+                    blob = cv2.dnn.blobFromImage(img, 1 / 255, (32+32*yoloBox, 641), (0, 0, 0), swapRB=True, crop=False)
                     #bloobları networke input olarak verilmesini sağlar
                     net.setInput(blob)
     
@@ -547,6 +554,9 @@ def videos(video):
                                 2)
             cv2.setMouseCallback("Contour", click_event)
             # oluşan konturlu görüntüyü gösteriliyor
+            fps = 1/(new_frame_time-prev_frame_time)
+            prev_frame_time = new_frame_time
+            cv2.putText(orginalFrame, str(int(fps)), (25, 160), font, 3, (100, 255, 0), 3, cv2.LINE_AA)
             cv2.imshow("Contour", orginalFrame)
 
         if key == ord("q"): break
