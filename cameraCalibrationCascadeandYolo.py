@@ -1,11 +1,12 @@
 import cv2
 import numpy as np
-import time
+
 from collections import deque
 import math
 import pickle
 import os.path as os
-import scipy.spatial.distance as dist
+import scipy.spatial.distance as dist 
+from time import time
 
 # nesne merkezini depolayacak veri tipi
 # kaç tane merkez noktası hatırlayacağı
@@ -57,6 +58,7 @@ def createTrackbar():
     cv2.resizeWindow("Scale and Neighb/Box", 640, 80)
     cv2.createTrackbar("Scale", "Scale and Neighb/Box", 400, 1000, empty)
     cv2.createTrackbar("Neighb/Box", "Scale and Neighb/Box", 4, 50, empty)
+    
 
 
 # Trackbarlardaki değerleri alıyor
@@ -71,17 +73,7 @@ def getHSVTrackbar():
 
 
 # Seçilen alandaki bölgeyi kırpıyor ve max ve min değerleri bulup trackbarların değerlerini güncelliyor
-def colorPicker(frame, hsvFrame):
-    cropCords = cv2.selectROI("Orginal Video", frame)
-    rx, ry, w, h = int(cropCords[0]), int(cropCords[1]), int(cropCords[2]), int(cropCords[3])
-    cropImg = hsvFrame[ry:ry + h, rx:rx + w]
-    h, s, v = cv2.split(cropImg)
-    cv2.setTrackbarPos("hueMax", "HSV", np.amax(h))
-    cv2.setTrackbarPos("hueLow", "HSV", np.amin(h))
-    cv2.setTrackbarPos("satMax", "HSV", np.amax(s))
-    cv2.setTrackbarPos("satLow", "HSV", np.amin(s))
-    cv2.setTrackbarPos("valueMax", "HSV", np.amax(v))
-    cv2.setTrackbarPos("valueLow", "HSV", np.amin(v))
+
 
 
 # Kameranın fov derecelerini bulmak için fonksiyon
@@ -252,11 +244,12 @@ def click_event(event, mouseX, mouseY, flags, params):
 
     # mouse tıklama eventi ve t tuşuna basılmışsa mouse x ve y koordinatlarını değişkenlere atayıp contour üzerine nokta bırakıyor
     if event == cv2.EVENT_LBUTTONDOWN:
+        
         Kontrol = True
         Point = [mouseX, mouseY]
+        
         if choise != 2:
-            if nesne is not None:
-                
+            if nesne is not None: 
                 if len(nesne) > 0:
                     centerRect = []
                     # mouse noktasını tutan değişken
@@ -284,6 +277,20 @@ def click_event(event, mouseX, mouseY, flags, params):
                     tracker.init(img, RectN)
 
 font = None
+def colorPicker(frame):
+    rx, ry, w, h = Point[0]-5,Point[1]-5,10,10
+    cropImg = frame[ry:ry + h, rx:rx + w]
+    h, s, v = cv2.split(cropImg)
+    cv2.setTrackbarPos("hueMax", "HSV", np.amax(h)+15)
+    cv2.setTrackbarPos("hueLow", "HSV", np.amin(h)-15)
+    cv2.setTrackbarPos("satMax", "HSV", np.amax(s)+15)
+    cv2.setTrackbarPos("satLow", "HSV", np.amin(s)-15)
+    cv2.setTrackbarPos("valueMax", "HSV", np.amax(v)+15)
+    cv2.setTrackbarPos("valueLow", "HSV", np.amin(v)-15)
+    color=((int(np.amax(h)+15),int(np.amax(s)+15),int(np.amax(v)+15)),(int(np.amin(h)-15),int(np.amin(s)-15),int(np.amin(v)-15)))
+    return color
+    
+    
 
 # videolar arası geçiş yaparken kodları bir daha yapmasın diye fonksiyon içerisinde
 def videos(video):
@@ -312,7 +319,7 @@ def videos(video):
         img = orginalFrame
         height, width, _ = img.shape
         key = cv2.waitKey(1)
-        new_frame_time = time.time()
+        new_frame_time = time()
         # trackbar dan gelen değerleri değişkenlere atıyoruz
         color = getHSVTrackbar()
 
@@ -325,9 +332,8 @@ def videos(video):
         if success:
 
             # videoyu daha yavaş bir şekilde oynatılması için bekleniyor ve video oynatılıyor
-            time.sleep(0.01)
             cv2.imshow("Orginal Video", orginalFrame)
-
+        
             center = None
             if choise == 0:
                 # hsvde çıkan bazı gürültüleri yok etmek için blur uygulanıyor
@@ -475,7 +481,36 @@ def videos(video):
                                     tracker.init(img, boxx2)
                                     track = True
                                     break
-
+                    if Kontrol and not track:
+                        
+                        blurred = cv2.GaussianBlur(orginalFrame, (15, 15), 0)
+                        blurredHsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+                        color=colorPicker(blurredHsv)
+                        
+            
+                        # Seçilen renk aralığında maske yapılıyor
+                        mask = cv2.inRange(blurredHsv, color[1], color[0])
+            
+                        # maskedeki bazı kusurları düzeltilmesi için erosion ve dilation işlemleri yapılıyor
+                        mask = cv2.erode(mask, None, iterations=4)
+                        mask = cv2.dilate(mask, None, iterations=4)
+            
+                        # Maske görüntüsünde oluşan kenarlara göre kontur buluyor
+                        (contours, _) = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+                        # eğer kontur varsa içine girilir
+                        if len(contours) > 0 and not track:
+                            #konturları tek tek dolaşıyor
+                            for cs in contours:
+                                #konturlara bir dikdörgen çiziyor
+                                rect=cv2.boundingRect(cs)
+                                #eğer nokta kontur içerisinde ise tracker başlatılıyor
+                                if pointInRect(Point,rect):
+                                    print("ok")
+                                    label,confidence="bilinmiyor","1.0"
+                                    drawBoxforYolo(orginalFrame, rect,label,confidence,main)
+                                    track = True
+                                    tracker.init(orginalFrame, rect)
                 if track:
                     ret, bbox = tracker.update(img)
                     #takip başladığında nesnenin ismi ve uyumluluğu gösterilir
@@ -552,13 +587,13 @@ def videos(video):
                 if (uzakliky > 0):
                     cv2.putText(orginalFrame, "Yukseliyor", (25, 115), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (0, 0, 255),
                                 2)
-            cv2.setMouseCallback("Contour", click_event)
+            
             # oluşan konturlu görüntüyü gösteriliyor
             fps = 1/(new_frame_time-prev_frame_time)
             prev_frame_time = new_frame_time
             cv2.putText(orginalFrame, str(int(fps)), (25, 160), font, 3, (100, 255, 0), 3, cv2.LINE_AA)
             cv2.imshow("Contour", orginalFrame)
-
+            cv2.setMouseCallback("Contour", click_event)
         if key == ord("q"): break
     capture.release()
     cv2.destroyAllWindows()
@@ -569,7 +604,7 @@ fov = calibrateAndFov()
 # gKuzeyX = int(input("Lütfen pusula yardımı ile kameranızın baktığı yönü derece olarak giriniz:"))
 # gKuzeyY = int(input("Lütfen kameranızın baktığı yukarı-aşağı doğru baktığı yönü açı derecesi olarak giriniz:"))
 gKuzeyX = 129
-gKuzeyY = 0
+gKuzeyY = 10
 videos(0)
 
 
