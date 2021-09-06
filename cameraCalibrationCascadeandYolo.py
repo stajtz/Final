@@ -339,10 +339,10 @@ def click_event(event, mouseX, mouseY, flags, params):
 #kalibrasyon yapılıp fov değerleri bulunuyor
 # fovx,fovy
 fov = calibrateAndFov()
-# gKuzeyX = int(input("Lütfen pusula yardımı ile kameranızın baktığı yönü derece olarak giriniz:"))
-# gKuzeyY = int(input("Lütfen kameranızın baktığı yukarı-aşağı doğru baktığı yönü açı derecesi olarak giriniz:"))
-gKuzeyX = 129
-gKuzeyY = 10
+gKuzeyX = int(input("Lütfen pusula yardımı ile kameranızın baktığı yönü derece olarak giriniz:"))
+gKuzeyY = int(input("Lütfen kameranızın baktığı yukarı-aşağı doğru baktığı yönü açı derecesi olarak giriniz:"))
+#gKuzeyX = 129
+#gKuzeyY = 10
 
 
 cv2.namedWindow("Contour")
