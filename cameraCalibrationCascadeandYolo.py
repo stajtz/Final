@@ -38,7 +38,7 @@ def empty(a): pass
 """ ---------------- Önceki haftadaki gereksiz fonksiyonlar ----------------
 Rengi videoyu durdurarak seçim ile yapılan kodları ile Çok Hatalı pozitif sonuç verdiği için kullanamadığımız cascade ile ilgili kodlar
 """
-
+#Renk ile alakalı
 # Renk Seçimi ile ilgili Trackbarları oluşturuyor
 def createHSVTrackbar():
     cv2.namedWindow("HSV")
@@ -125,7 +125,7 @@ def drawFirstColor(orginalFrame,key):
         # oluşan konturları görüntüye çiziyor
         cv2.drawContours(orginalFrame, [box], 0, (255, 0, 0), thickness=2)
 
-
+#Cascade ile alakalı
 # istenilen cascadenin dosya konumu verilir
 folderName = "kirtasiye-cascade"
 cascadeName = "kalem"
