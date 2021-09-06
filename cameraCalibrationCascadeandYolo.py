@@ -224,7 +224,7 @@ def calibrateAndFov():
                 if not (frameCount % 20) == 0:
                     s = "{}kalan resim {}".format(s, str(imgGoal - imgCount))
                     cv2.putText(img, s, (25, 50), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.7, (255, 255, 255), 1)
-                    cv2.imshow('Video', img)
+                    cv2.imshow('Kamera Kalibrasyonu', img)
                     continue
 
                 # kalibrasyon için resmi gri tonlamalı siyah beyaza çeviriyor
@@ -256,7 +256,7 @@ def calibrateAndFov():
                 objPoints.append(patternPoints.reshape(1, -1, 3))
 
                 # görüntüyü gösteriyor ve 100 ms bekliyor
-                cv2.imshow('Video', img)
+                cv2.imshow('Kamera Kalibrasyonu', img)
                 cv2.waitKey(100)
 
         # kalibrasyon fonksiyonunu çağırıp  kamera matrisini alıyor
